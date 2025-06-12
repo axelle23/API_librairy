@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Any
 from datetime import datetime, timedelta
 
+
 from ...db.session import get_db
 from ...models.loans import Loan as LoanModel
 from ...models.books import Book as BookModel
@@ -67,8 +68,7 @@ def create_loan(
 
     # Si la date d'échéance n'est pas spécifiée, la définir à 2 semaines
     if not loan_in.due_date:
-        loan_data = loan_in.dict()
-        loan_data["due_date"] = datetime.utcnow() + timedelta(days=14)
+        loan_data = loan_in.copy(update={"due_date": datetime.utcnow() + timedelta(days=14)})
         loan = repository.create(obj_in=loan_data)
     else:
         loan = repository.create(obj_in=loan_in)

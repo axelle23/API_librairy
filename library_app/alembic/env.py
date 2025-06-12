@@ -1,5 +1,4 @@
 # alembic/env.py
-
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -10,7 +9,7 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
-from src.models.books import Book
+
 
 # Import des modèles pour la génération automatique des migrations
 from src.models.base import Base
@@ -22,13 +21,12 @@ config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
-fileConfig(config.config_file_name)
-
+import logging
+logging.basicConfig(level=logging.INFO)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
 target_metadata = Base.metadata
-
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

@@ -4,7 +4,6 @@ from datetime import datetime
 
 from .base import Base
 
-
 class Loan(Base):
     user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
     book_id = Column(Integer, ForeignKey("book.id"), nullable=False)
