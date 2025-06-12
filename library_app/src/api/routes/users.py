@@ -33,7 +33,7 @@ def create_user(
     *,
     db: Session = Depends(get_db),
     user_in: UserCreate,
-    current_user = Depends(get_current_admin_user)
+    #current_user = Depends(get_current_admin_user)
 ) -> Any:
     """
     Crée un nouvel utilisateur.

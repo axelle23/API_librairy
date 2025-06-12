@@ -81,5 +81,5 @@ class UserService(BaseService[User, UserCreate, UserUpdate]):
         """
         Vérifie si un utilisateur est administrateur.
         """
-        #return user.is_admin
-        return True
+        return user.is_admin
+        
