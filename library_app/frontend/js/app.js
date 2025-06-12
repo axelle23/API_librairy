@@ -1,4 +1,5 @@
 // Application principale
+alert("Script app.js chargé !");
 const App = {
     // Initialisation de l'application
     init: function() {
@@ -179,16 +180,17 @@ const App = {
 
         try {
             const books = await Api.getBooks();
+            console.log("Livres récupérés :", books);
 
             let html = `
                 <h2 class="mb-20">Catalogue de Livres</h2>
                 <div class="card-container">
             `;
 
-            if (books.length === 0) {
+            if (books.items.length === 0) {
                 html += `<p>Aucun livre disponible.</p>`;
             } else {
-                books.forEach(book => {
+                books.items.forEach(book => {
                     html += `
                         <div class="card">
                             <div class="card-header">
@@ -209,13 +211,14 @@ const App = {
             }
 
             html += `</div>`;
-
             UI.setContent(html);
         } catch (error) {
             console.error('Erreur lors du chargement des livres:', error);
             UI.setContent(`<p>Erreur lors du chargement des livres. Veuillez réessayer.</p>`);
         }
     },
+
+
 
     // Affiche les détails d'un livre
     viewBookDetails: async function(bookId) {

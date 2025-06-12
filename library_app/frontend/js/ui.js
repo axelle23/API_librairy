@@ -83,6 +83,10 @@ const UI = {
 
     // Charge le contenu HTML dans la page
     setContent: function(html) {
-        this.elements.pageContent.innerHTML = html;
+        if (!this.elements.pageContent) {
+            console.error("Erreur : #page-content non trouvé !");
+            return;
+    }
+    this.elements.pageContent.innerHTML = html;
     }
 };
