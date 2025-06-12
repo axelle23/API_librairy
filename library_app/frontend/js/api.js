@@ -103,5 +103,19 @@ const Api = {
 
     getBook: async function(id) {
         return this.call(`/books/${id}`);
+    },
+    // Récupérer les emprunts de l'utilisateur connecté
+    getUserLoans: async function() {
+        return this.call('/loans/user');  // Ajuste selon ton endpoint API
+    },
+
+    // Emprunter un livre
+    borrowBook: async function(bookId) {
+        return this.call(`/loans/borrow/${bookId}`, 'POST');
+    },
+
+    // Retourner un livre
+    returnBook: async function(loanId) {
+        return this.call(`/loans/return/${loanId}`, 'POST');
     }
 };

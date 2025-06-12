@@ -1,5 +1,5 @@
 // Application principale
-alert("Script app.js chargé !");
+
 const App = {
     // Initialisation de l'application
     init: function() {
@@ -35,6 +35,9 @@ const App = {
                 break;
             case 'books':
                 this.loadBooksPage();
+                break;
+            case 'loans':
+                this.loadUserLoansPage();
                 break;
             case 'profile':
                 this.loadProfilePage();
@@ -246,7 +249,12 @@ const App = {
                     <button class="btn mt-20" onclick="App.loadPage('books')">Retour à la liste</button>
                 </div>
             `;
-
+        // Bouton Emprunter seulement si exemplaires dispo
+        if (book.quantity > 0) {
+            html += `<button class="btn btn-borrow" onclick="App.borrowBook(${book.id})">Emprunter</button>`;
+        } else {
+            html += `<p><em>Pas d’exemplaire disponible pour le moment.</em></p>`;
+        }
             UI.setContent(html);
         } catch (error) {
             console.error('Erreur lors du chargement des détails du livre:', error);
@@ -320,62 +328,69 @@ const App = {
             UI.setContent(`<p>Erreur lors du chargement du profil. Veuillez réessayer.</p>`);
         }finally {
         UI.hideLoading();  
+        }
+    },
+    borrowBook: async function(bookId) {
+    try {
+        await Api.borrowBook(bookId);
+        UI.showMessage('Livre emprunté avec succès !', 'success');
+        // Recharger la page des détails pour mettre à jour la dispo
+        await this.viewBookDetails(bookId);
+    } catch (error) {
+        UI.showMessage('Impossible d’emprunter ce livre.', 'error');
     }
     },
 
-    // Charge la page de modification du profil
-    loadEditProfilePage: function(user) {
-        const html = `
-            <div class="form-container">
-                <h2 class="text-center mb-20">Modifier le profil</h2>
-                <form id="edit-profile-form">
-                    <div class="form-group">
-                        <label for="full_name">Nom complet</label>
-                        <input type="text" id="full_name" class="form-control" value="${user.full_name}" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="phone">Téléphone</label>
-                        <input type="text" id="phone" class="form-control" value="${user.phone || ''}">
-                    </div>
-                    <div class="form-group">
-                        <label for="address">Adresse</label>
-                        <textarea id="address" class="form-control">${user.address || ''}</textarea>
-                    </div>
-                    <button type="submit" class="btn btn-block">Enregistrer les modifications</button>
-                </form>
-                <button class="btn btn-block mt-20" onclick="App.loadPage('profile')">Annuler</button>
-            </div>
-        `;
+    returnBook: async function(loanId) {
+        try {
+            await Api.returnBook(loanId);
+            UI.showMessage('Livre retourné avec succès !', 'success');
+            // Recharger la page des emprunts
+            await this.loadUserLoansPage();
+        } catch (error) {
+            UI.showMessage('Impossible de retourner ce livre.', 'error');
+        }
+    },
 
-        UI.setContent(html);
+     // Charge la page des emprunts utilisateur
+    loadUserLoansPage: async function() {
+        UI.showLoading();
 
-        // Configurer le formulaire de modification du profil
-        document.getElementById('edit-profile-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        try {
+            const loans = await Api.getUserLoans();
+            console.log("Emprunts récupérés :", loans);
 
-            const fullName = document.getElementById('full_name').value;
-            const phone = document.getElementById('phone').value;
-            const address = document.getElementById('address').value;
+            let html = `
+                <h2>Mes emprunts</h2>
+                <div class="loans-container">
+            `;
 
-            try {
-                const userData = {
-                    full_name: fullName,
-                    phone: phone || null,
-                    address: address || null
-                };
-
-                await Api.call('/users/me', 'PUT', userData);
-                await Api.getCurrentUser();
-                UI.showMessage('Profil mis à jour avec succès', 'success');
-                this.loadPage('profile');
-            } catch (error) {
-                console.error('Erreur lors de la mise à jour du profil:', error);
+            if (loans.length === 0) {
+                html += `<p>Vous n'avez aucun emprunt en cours.</p>`;
+            } else {
+                loans.forEach(loan => {
+                    html += `
+                        <div class="loan-card">
+                            <h3>${loan.book.title}</h3>
+                            <p><strong>Auteur:</strong> ${loan.book.author}</p>
+                            <p><strong>Date d'emprunt:</strong> ${new Date(loan.borrow_date).toLocaleDateString()}</p>
+                            <p><strong>Date de retour prévue:</strong> ${new Date(loan.return_date).toLocaleDateString()}</p>
+                            <button class="btn btn-return" onclick="App.returnBook(${loan.id})">Retourner</button>
+                        </div>
+                    `;
+                });
             }
-        });
-    }
-};
 
-// Initialiser l'application au chargement de la page
+            html += `</div>`;
+            UI.setContent(html);
+        } catch (error) {
+            console.error('Erreur lors du chargement des emprunts:', error);
+            UI.setContent('<p>Erreur lors du chargement des emprunts. Veuillez réessayer.</p>');
+        }
+    } // PAS de virgule ou point-virgule ici si c’est la dernière méthode dans l’objet
+}; // fin de l'objet App
+
+// Initialiser l'application au chargement de la page (hors de l'objet App)
 document.addEventListener('DOMContentLoaded', () => {
     App.init();
 });
