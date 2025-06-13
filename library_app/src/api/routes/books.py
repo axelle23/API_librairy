@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from typing import List, Any
 from ...utils.pagination import PaginationParams, paginate, Page
 from ...db.session import get_db

@@ -42,7 +42,7 @@ def create_loan(
     user_id: int,
     book_id: int,
     loan_period_days: int = 14,
-    current_user = Depends(get_current_admin_user)
+    current_user = Depends(get_current_active_user)  # <-- Changer admin en active_user
 ) -> Any:
     """
     Crée un nouvel emprunt.
@@ -226,3 +226,33 @@ def read_book_loans(
 
     loans = service.get_loans_by_book(book_id=book_id)
     return loans
+
+
+@router.get("/user/{user_id}", response_model=List[Loan])
+def read_user_loans(
+    *,
+    db: Session = Depends(get_db),
+    user_id: int,
+    current_user = Depends(get_current_active_user)
+) -> Any:
+    """
+    Récupère les emprunts d'un utilisateur avec détails du livre.
+    """
+    if not current_user.is_admin and current_user.id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès non autorisé"
+        )
+
+    loan_repository = LoanRepository(LoanModel, db)
+    book_repository = BookRepository(BookModel, db)
+    user_repository = UserRepository(UserModel, db)
+    service = LoanService(loan_repository, book_repository, user_repository)
+
+    loans = service.get_loans_by_user(user_id=user_id)
+    # Ajouter les détails du livre à chaque emprunt
+    result = []
+    for loan in loans:
+        book = db.query(BookModel).filter(BookModel.id == loan.book_id).first()
+        result.append({**loan.__dict__, 'book': book})
+    return result

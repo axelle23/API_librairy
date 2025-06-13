@@ -1,5 +1,5 @@
 // Application principale
-alert("Script app.js chargé !");
+
 const App = {
     // Initialisation de l'application
     init: function() {
@@ -38,6 +38,9 @@ const App = {
                 break;
             case 'profile':
                 this.loadProfilePage();
+                break;
+            case 'loans':
+                this.loadLoansPage();
                 break;
             default:
                 this.loadLoginPage();
@@ -178,20 +181,25 @@ const App = {
     loadBooksPage: async function() {
         UI.showLoading();
 
-        try {
-            const books = await Api.getBooks();
-            console.log("Livres récupérés :", books);
+        // Ajout du champ de recherche
+        let html = `
+            <h2 class="mb-20">Catalogue de Livres</h2>
+            <div class="search-bar mb-20">
+                <input type="text" id="book-search-input" placeholder="Rechercher un livre (titre, auteur, ISBN...)" style="width: 300px; padding: 5px;">
+                <button id="book-search-btn" class="btn">Rechercher</button>
+            </div>
+            <div class="card-container" id="books-list-container"></div>
+        `;
+        UI.setContent(html);
 
-            let html = `
-                <h2 class="mb-20">Catalogue de Livres</h2>
-                <div class="card-container">
-            `;
-
-            if (books.items.length === 0) {
-                html += `<p>Aucun livre disponible.</p>`;
+        // Fonction pour afficher les livres
+        async function renderBooksList(books) {
+            let listHtml = '';
+            if (!books.items || books.items.length === 0) {
+                listHtml = `<p>Aucun livre disponible.</p>`;
             } else {
                 books.items.forEach(book => {
-                    html += `
+                    listHtml += `
                         <div class="card">
                             <div class="card-header">
                                 <h3>${book.title}</h3>
@@ -209,13 +217,39 @@ const App = {
                     `;
                 });
             }
-
-            html += `</div>`;
-            UI.setContent(html);
-        } catch (error) {
-            console.error('Erreur lors du chargement des livres:', error);
-            UI.setContent(`<p>Erreur lors du chargement des livres. Veuillez réessayer.</p>`);
+            document.getElementById('books-list-container').innerHTML = listHtml;
         }
+
+        // Chargement initial (tous les livres)
+        try {
+            const books = await Api.getBooks();
+            await renderBooksList(books);
+        } catch (error) {
+            document.getElementById('books-list-container').innerHTML = `<p>Erreur lors du chargement des livres. Veuillez réessayer.</p>`;
+        }
+
+        // Gestion de la recherche
+        document.getElementById('book-search-btn').addEventListener('click', async () => {
+            const query = document.getElementById('book-search-input').value.trim();
+            if (query.length === 0) {
+                // Si champ vide, recharger tous les livres
+                const books = await Api.getBooks();
+                await renderBooksList(books);
+            } else {
+                try {
+                    const books = await Api.searchBooks(query);
+                    await renderBooksList(books);
+                } catch (error) {
+                    document.getElementById('books-list-container').innerHTML = `<p>Erreur lors de la recherche. Veuillez réessayer.</p>`;
+                }
+            }
+        });
+        // Recherche avec la touche Entrée
+        document.getElementById('book-search-input').addEventListener('keydown', async (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('book-search-btn').click();
+            }
+        });
     },
 
 
@@ -226,7 +260,14 @@ const App = {
 
         try {
             const book = await Api.getBook(bookId);
-
+            const user = Auth.getUser();
+            let actionButtons = '';
+            if (user) {
+                // Bouton emprunter si le livre est disponible
+                if (book.quantity > 0) {
+                    actionButtons += `<button class="btn btn-success" id="borrow-btn">Emprunter</button>`;
+                }
+            }
             const html = `
                 <div class="book-details">
                     <h2>${book.title}</h2>
@@ -243,11 +284,29 @@ const App = {
                         <h3>Description</h3>
                         <p>${book.description || 'Aucune description disponible.'}</p>
                     </div>
+                    <div class="book-actions mt-20">${actionButtons}</div>
                     <button class="btn mt-20" onclick="App.loadPage('books')">Retour à la liste</button>
                 </div>
             `;
 
             UI.setContent(html);
+
+            // Gestion du bouton emprunter
+            if (user && book.quantity > 0) {
+                const borrowBtn = document.getElementById('borrow-btn');
+                if (borrowBtn) {
+                    borrowBtn.addEventListener('click', async () => {
+                        try {
+                            await Api.borrowBook(user.id, book.id);
+                            UI.showMessage('Livre emprunté avec succès !', 'success');
+                            this.viewBookDetails(book.id); // Refresh
+                        } catch (e) {
+                            let msg = e && e.message ? e.message : (typeof e === 'string' ? e : JSON.stringify(e));
+                            UI.showMessage(msg, 'error');
+                        }
+                    });
+                }
+            }
         } catch (error) {
             console.error('Erreur lors du chargement des détails du livre:', error);
             UI.setContent(`
@@ -372,6 +431,55 @@ const App = {
                 console.error('Erreur lors de la mise à jour du profil:', error);
             }
         });
+    },
+
+    // Affiche la page des emprunts de l'utilisateur
+    loadLoansPage: async function() {
+        UI.showLoading();
+        try {
+            const user = Auth.getUser();
+            if (!user) {
+                UI.setContent('<p>Vous devez être connecté pour voir vos emprunts.</p>');
+                return;
+            }
+            const loans = await Api.getUserLoans(user.id);
+            let html = `<h2>Mes emprunts</h2>`;
+            if (!loans || loans.length === 0) {
+                html += '<p>Aucun emprunt en cours.</p>';
+            } else {
+                html += '<div class="loans-list">';
+                loans.forEach(loan => {
+                    const bookTitle = loan.book && loan.book.title ? loan.book.title : 'Livre inconnu';
+                    html += `
+                        <div class="loan-card">
+                            <h3>${bookTitle}</h3>
+                            <p><strong>Date d'emprunt :</strong> ${loan.loan_date || ''}</p>
+                            <p><strong>Date de retour prévue :</strong> ${loan.due_date || ''}</p>
+                            <p><strong>Status :</strong> ${loan.returned ? 'Retourné' : 'En cours'}</p>
+                            ${!loan.returned ? `<button class="btn btn-warning" onclick="App.returnLoan(${loan.id})">Retourner</button>` : ''}
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            UI.setContent(html);
+        } catch (e) {
+            console.error('Erreur lors du chargement des emprunts:', e);
+            UI.setContent('<p>Erreur lors du chargement des emprunts.</p>');
+        } finally {
+            UI.hideLoading();
+        }
+    },
+
+    // Action pour retourner un livre
+    returnLoan: async function(loanId) {
+        try {
+            await Api.returnLoan(loanId);
+            UI.showMessage('Livre retourné avec succès !', 'success');
+            this.loadLoansPage();
+        } catch (e) {
+            UI.showMessage(e.message, 'error');
+        }
     }
 };
 

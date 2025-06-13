@@ -103,5 +103,26 @@ const Api = {
 
     getBook: async function(id) {
         return this.call(`/books/${id}`);
+    },
+
+    // Recherche de livres par mot-clé (titre, auteur, etc.)
+    searchBooks: async function(query, skip = 0, limit = 100) {
+        return this.call(`/books/?search=${encodeURIComponent(query)}&skip=${skip}&limit=${limit}`);
+    },
+
+    // Récupère les emprunts de l'utilisateur connecté
+    getUserLoans: async function(userId) {
+        return this.call(`/loans/user/${userId}`);
+    },
+
+    // Emprunter un livre
+    borrowBook: async function(userId, bookId) {
+        // Envoie les paramètres dans l'URL, pas dans le body
+        return this.call(`/loans/?user_id=${userId}&book_id=${bookId}`, 'POST');
+    },
+
+    // Retourner un livre (par id d'emprunt)
+    returnLoan: async function(loanId) {
+        return this.call(`/loans/${loanId}/return`, 'POST');
     }
 };
